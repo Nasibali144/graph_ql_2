@@ -45,11 +45,25 @@ class _HomeState extends State<Home> {
           final todo = list[i];
           return Card(
             child: ListTile(
+              leading: Checkbox(
+                value: todo.isCompleted,
+                onChanged: (value) {
+                  debugPrint(value.toString());
+                },
+              ),
               title: Text(todo.title),
               subtitle: Text(todo.userId),
+              trailing: IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.delete),
+              ),
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        child: const Icon(Icons.create_outlined),
       ),
     );
   }

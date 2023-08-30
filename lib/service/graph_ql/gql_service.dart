@@ -7,7 +7,7 @@ sealed class GQLService {
   static final HttpLink _httpLink = HttpLink('https://hasura.io/learn/graphql');
 
   static final AuthLink _authLink = AuthLink(
-    getToken: () async => 'Your Token',
+    getToken: () async => "",
   );
 
   static final Link link = _authLink.concat(_httpLink);
