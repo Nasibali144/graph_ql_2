@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:graph_ql_2/page/home.dart';
 
@@ -6,9 +9,18 @@ class LearnGQL extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData.light(useMaterial3: true),
-      home: const Home(),
+    if(Platform.isAndroid
+    || Platform.isFuchsia
+    || Platform.isLinux
+    || Platform.isWindows) {
+      return MaterialApp(
+        theme: ThemeData.light(useMaterial3: true),
+        home: const Home(),
+      );
+    }
+
+    return const CupertinoApp(
+      home: Home(),
     );
   }
 }

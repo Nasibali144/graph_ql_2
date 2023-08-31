@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:graph_ql_2/service/graph_ql/gql_service.dart';
+import 'package:graph_ql_2/service/util.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../models/todo.dart';
@@ -13,6 +15,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   List<Todo> list = [];
+  final titleCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -22,49 +25,110 @@ class _HomeState extends State<Home> {
 
   void fetchTodo() async {
     final QueryResult result = await GQLService.gql.query(QueryOptions(
-      document: gql(GQLRequest.queryTodo),
+      document: gql(GQLRequest.queryTodoMe()),
     ));
 
-    if(result.data != null) {
-      print(result.data);
-      list = (result.data!["todos"] as List).map((json) => Todo.fromJson(Map<String, Object?>.from(json as Map))).toList();
+    if (result.data != null) {
+      if (kDebugMode) {
+        print(result.data);
+      }
+      list = (result.data!["todos"] as List)
+          .map((json) => Todo.fromJson(Map<String, Object?>.from(json as Map)))
+          .toList();
       setState(() {});
+    }
+  }
+
+  void completeTodo(Todo todo) async {
+    todo.isCompleted = !todo.isCompleted;
+    final QueryResult result = await GQLService.gql.mutate(MutationOptions(
+        document: gql(GQLRequest.mutationEditTodo(todo.id, todo.isCompleted))));
+
+    if (result.data != null) {
+      setState(() {});
+    }
+  }
+
+  void deleteTodo(Todo todo) async {
+    todo.isCompleted = !todo.isCompleted;
+    final QueryResult result = await GQLService.gql.mutate(
+        MutationOptions(document: gql(GQLRequest.mutationDeleteTodo(todo.id))));
+
+    if (result.data != null) {
+      fetchTodo();
+    }
+  }
+
+  void createTodo(String title, BuildContext context) async {
+    final QueryResult result = await GQLService.gql.mutate(MutationOptions(
+        document: gql(GQLRequest.mutationCreateTodo(title, false))));
+
+    if (result.data != null && context.mounted) {
+      fetchTodo();
+      Navigator.of(context).pop();
+      titleCtrl.clear();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Todos"),
+    return CupertinoPageScaffold(
+      resizeToAvoidBottomInset: true,
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text("Todos"),
+        trailing: CupertinoButton(
+            onPressed: () => showCreateDialog(context),
+            child: const Icon(CupertinoIcons.pencil)),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+      child: ListView.builder(
+        padding: const EdgeInsets.only(top: 120),
         itemCount: list.length,
         itemBuilder: (_, i) {
           final todo = list[i];
-          return Card(
-            child: ListTile(
-              leading: Checkbox(
-                value: todo.isCompleted,
-                onChanged: (value) {
-                  debugPrint(value.toString());
-                },
-              ),
-              title: Text(todo.title),
-              subtitle: Text(todo.userId),
-              trailing: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.delete),
-              ),
+          return CupertinoListTile(
+            leading: CupertinoCheckbox(
+              value: todo.isCompleted,
+              onChanged: (value) {
+                debugPrint(value.toString());
+                completeTodo(todo);
+              },
+            ),
+            title: Text(todo.title),
+            subtitle: Text(Utils.formatDate(todo.createdAt)),
+            trailing: CupertinoButton(
+              onPressed: () {
+                deleteTodo(todo);
+              },
+              child: const Icon(CupertinoIcons.delete),
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.create_outlined),
-      ),
     );
   }
+
+  void showCreateDialog(BuildContext context) => showCupertinoDialog(
+      context: context,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('Create Todo'),
+          content: Padding(
+            padding: const EdgeInsets.all(15),
+            child: CupertinoTextField(
+              controller: titleCtrl,
+              placeholder: "Title",
+            ),
+          ),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context, 'OK'),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              onPressed: () => createTodo(titleCtrl.text, context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      });
 }
