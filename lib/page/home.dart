@@ -24,39 +24,35 @@ class _HomeState extends State<Home> {
   }
 
   void fetchTodo() async {
-    final QueryResult result = await GQLService.gql.query(QueryOptions(
-      document: gql(GQLRequest.queryTodoMe()),
+    final stream = GQLService.gql.subscribe(SubscriptionOptions(
+      document: gql(GQLRequest.queryTodosSubscription),
     ));
 
-    if (result.data != null) {
-      if (kDebugMode) {
-        print(result.data);
+    stream.listen((result) {
+      print("result: $result");
+      if (result.data != null) {
+
+        if (kDebugMode) {
+          print(result.data);
+        }
+        list = (result.data!["todos"] as List)
+            .map((json) => Todo.fromJson(Map<String, Object?>.from(json as Map)))
+            .toList();
+        setState(() {});
       }
-      list = (result.data!["todos"] as List)
-          .map((json) => Todo.fromJson(Map<String, Object?>.from(json as Map)))
-          .toList();
-      setState(() {});
-    }
+    });
   }
 
   void completeTodo(Todo todo) async {
     todo.isCompleted = !todo.isCompleted;
-    final QueryResult result = await GQLService.gql.mutate(MutationOptions(
+    await GQLService.gql.mutate(MutationOptions(
         document: gql(GQLRequest.mutationEditTodo(todo.id, todo.isCompleted))));
-
-    if (result.data != null) {
-      setState(() {});
-    }
   }
 
   void deleteTodo(Todo todo) async {
     todo.isCompleted = !todo.isCompleted;
-    final QueryResult result = await GQLService.gql.mutate(
+    await GQLService.gql.mutate(
         MutationOptions(document: gql(GQLRequest.mutationDeleteTodo(todo.id))));
-
-    if (result.data != null) {
-      fetchTodo();
-    }
   }
 
   void createTodo(String title, BuildContext context) async {
@@ -64,7 +60,6 @@ class _HomeState extends State<Home> {
         document: gql(GQLRequest.mutationCreateTodo(title, false))));
 
     if (result.data != null && context.mounted) {
-      fetchTodo();
       Navigator.of(context).pop();
       titleCtrl.clear();
     }
