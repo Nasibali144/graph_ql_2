@@ -1,9 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:graph_ql_2/service/graph_ql/gql_service.dart';
 import 'package:graph_ql_2/service/util.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-
 import '../models/todo.dart';
 
 class Home extends StatefulWidget {
@@ -16,32 +14,6 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   List<Todo> list = [];
   final titleCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    fetchTodo();
-  }
-
-  void fetchTodo() async {
-    final stream = GQLService.gql.subscribe(SubscriptionOptions(
-      document: gql(GQLRequest.queryTodosSubscription),
-    ));
-
-    stream.listen((result) {
-      print("result: $result");
-      if (result.data != null) {
-
-        if (kDebugMode) {
-          print(result.data);
-        }
-        list = (result.data!["todos"] as List)
-            .map((json) => Todo.fromJson(Map<String, Object?>.from(json as Map)))
-            .toList();
-        setState(() {});
-      }
-    });
-  }
 
   void completeTodo(Todo todo) async {
     todo.isCompleted = !todo.isCompleted;
@@ -67,6 +39,10 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    // Mutation
+    // Query
+    // Subscription
+
     return CupertinoPageScaffold(
       resizeToAvoidBottomInset: true,
       navigationBar: CupertinoNavigationBar(
@@ -75,55 +51,70 @@ class _HomeState extends State<Home> {
             onPressed: () => showCreateDialog(context),
             child: const Icon(CupertinoIcons.pencil)),
       ),
-      child: ListView.builder(
-        padding: const EdgeInsets.only(top: 120),
-        itemCount: list.length,
-        itemBuilder: (_, i) {
-          final todo = list[i];
-          return CupertinoListTile(
-            leading: CupertinoCheckbox(
-              value: todo.isCompleted,
-              onChanged: (value) {
-                debugPrint(value.toString());
-                completeTodo(todo);
-              },
-            ),
-            title: Text(todo.title),
-            subtitle: Text(Utils.formatDate(todo.createdAt)),
-            trailing: CupertinoButton(
-              onPressed: () {
-                deleteTodo(todo);
-              },
-              child: const Icon(CupertinoIcons.delete),
-            ),
+      child: Subscription(
+        builder: (result) {
+          if (result.data != null) {
+            debugPrint(result.data.toString());
+            list = (result.data!["todos"] as List)
+                .map((json) =>
+                    Todo.fromJson(Map<String, Object?>.from(json as Map)))
+                .toList();
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.only(top: 120),
+            itemCount: list.length,
+            itemBuilder: (_, i) {
+              final todo = list[i];
+              return CupertinoListTile(
+                leading: CupertinoCheckbox(
+                  value: todo.isCompleted,
+                  onChanged: (value) {
+                    debugPrint(value.toString());
+                    completeTodo(todo);
+                  },
+                ),
+                title: Text(todo.title),
+                subtitle: Text(Utils.formatDate(todo.createdAt)),
+                trailing: CupertinoButton(
+                  onPressed: () {
+                    deleteTodo(todo);
+                  },
+                  child: const Icon(CupertinoIcons.delete),
+                ),
+              );
+            },
           );
         },
+        options: SubscriptionOptions(
+          document: gql(GQLRequest.queryTodosSubscription),
+        ),
       ),
     );
   }
 
   void showCreateDialog(BuildContext context) => showCupertinoDialog(
-      context: context,
-      builder: (context) {
-        return CupertinoAlertDialog(
-          title: const Text('Create Todo'),
-          content: Padding(
-            padding: const EdgeInsets.all(15),
-            child: CupertinoTextField(
-              controller: titleCtrl,
-              placeholder: "Title",
+        context: context,
+        builder: (context) {
+          return CupertinoAlertDialog(
+            title: const Text('Create Todo'),
+            content: Padding(
+              padding: const EdgeInsets.all(15),
+              child: CupertinoTextField(
+                controller: titleCtrl,
+                placeholder: "Title",
+              ),
             ),
-          ),
-          actions: <Widget>[
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context, 'OK'),
-              child: const Text('Cancel'),
-            ),
-            CupertinoDialogAction(
-              onPressed: () => createTodo(titleCtrl.text, context),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      });
+            actions: <Widget>[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context, 'OK'),
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                onPressed: () => createTodo(titleCtrl.text, context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
 }
